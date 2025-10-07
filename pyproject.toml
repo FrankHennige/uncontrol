@@ -1,0 +1,14 @@
+[project]
+name = "chat-fortress"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "django==5.2.7",
+    "gunicorn==23.0.0",
+    "python-gnupg==0.5.5",
+]
+
+[tool.hatch.build]
+sources = ["src"]
