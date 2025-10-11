@@ -54,7 +54,7 @@ class EncryptionGroupAdmin(admin.ModelAdmin):
     search_fields = ("id",)
     list_filter = ("created_at", "updated_at")
     readonly_fields = ("id", "created_at", "updated_at")
-    filter_horizontal = ("users", "public_keys")
+    # filter_horizontal = ("users", "public_keys")
     ordering = ("-created_at",)
 
     def get_users(self, obj):
