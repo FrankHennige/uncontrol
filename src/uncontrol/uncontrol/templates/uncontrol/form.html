@@ -1,0 +1,20 @@
+{% if form %}
+<form action="{% if form.action %}{{ form.action }}{% else %}{{ request.path }}{% endif %}"
+      method="{% if form.method %}{{ form.method }}{% else %}post{% endif %}">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" value="Submit">
+</form>
+{% endif %}
+{% if result %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h2>Result:</h2>
+            <div class="overflow-scroll">
+                <p class="word-wrap" style="word-wrap:anywhere;">{{ result }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

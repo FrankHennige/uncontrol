@@ -1,11 +1,10 @@
 from django.contrib import admin
-from django.utils.translation import gettext_lazy as _
 
-from .models import ChatFortressUser, PublicKey, PrivateKey, Membership, EncryptionGroup
+from .models import UncontrolProfile, PublicKey, PrivateKey, Membership, EncryptionGroup
 
 
-@admin.register(ChatFortressUser)
-class ChatFortressUserAdmin(admin.ModelAdmin):
+@admin.register(UncontrolProfile)
+class UncontrolProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "id", "created_at", "updated_at")
     search_fields = ("user__username", "user__email")
     list_filter = ("created_at", "updated_at")
@@ -15,18 +14,18 @@ class ChatFortressUserAdmin(admin.ModelAdmin):
 
 @admin.register(PublicKey)
 class PublicKeyAdmin(admin.ModelAdmin):
-    list_display = ("creator", "id", "created_at", "updated_at")
-    search_fields = ("creator__user__username", "content")
+    list_display = ("id", "fingerprint", "creator", "created_at", "updated_at")
+    search_fields = ("fingerprint", "creator__user__username", "content")
     list_filter = ("created_at", "updated_at")
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = ("id", "uids", "created_at", "updated_at")
     raw_id_fields = ("creator",)
     ordering = ("-created_at",)
 
 
 @admin.register(PrivateKey)
 class PrivateKeyAdmin(admin.ModelAdmin):
-    list_display = ("owner", "id", "created_at", "updated_at")
-    search_fields = ("owner__user__username",)
+    list_display = ("id", "fingerprint", "owner", "created_at", "updated_at")
+    search_fields = ("fingerprint", "owner__user__username",)
     list_filter = ("created_at", "updated_at")
     readonly_fields = ("id", "created_at", "updated_at")
     raw_id_fields = ("owner",)
@@ -40,23 +39,33 @@ class PrivateKeyAdmin(admin.ModelAdmin):
 
 @admin.register(Membership)
 class MembershipAdmin(admin.ModelAdmin):
-    list_display = ("user", "encryption_group", "is_manager", "created_at", "updated_at")
-    search_fields = ("user__user__username", "encryption_group__id")
+    list_display = ("member", "encryption_group", "is_manager", "created_at", "updated_at")
+    search_fields = ("member__user__username", "encryption_group__id")
     list_filter = ("is_manager", "created_at", "updated_at")
     readonly_fields = ("id", "created_at", "updated_at")
-    raw_id_fields = ("user", "encryption_group")
+    raw_id_fields = ("member", "encryption_group")
     ordering = ("-created_at",)
+
+
+class EncryptionGroupPublicKeysInline(admin.TabularInline):
+    model = EncryptionGroup.public_keys.through
+    extra = 0
+    verbose_name = "Public Key"
+    verbose_name_plural = "Public Keys"
+    raw_id_fields = ("publickey",)
 
 
 @admin.register(EncryptionGroup)
 class EncryptionGroupAdmin(admin.ModelAdmin):
-    list_display = ("id", "get_users", "get_public_keys_count", "created_at", "updated_at")
+    list_display = ("id", "created_at", "updated_at")
     search_fields = ("id",)
     list_filter = ("created_at", "updated_at")
     readonly_fields = ("id", "created_at", "updated_at")
     # filter_horizontal = ("users", "public_keys")
     ordering = ("-created_at",)
+    inlines = [EncryptionGroupPublicKeysInline]
 
+    """
     def get_users(self, obj):
         return ", ".join([user.user.username for user in obj.users.all()])
 
@@ -66,3 +75,4 @@ class EncryptionGroupAdmin(admin.ModelAdmin):
         return obj.public_keys.count()
 
     get_public_keys_count.short_description = _("Public Keys Count")
+    """
