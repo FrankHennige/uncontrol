@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
-from django.views.generic import TemplateView, FormView, UpdateView, CreateView, DeleteView
+from django.views.generic import TemplateView, UpdateView, CreateView, DeleteView
+from htmx_components.views import Modal
+from htmx_components.views import ModalFormView
 
 from .forms import PrivateKeyImportForm, PublicKeyImportForm, EncryptionGroupEncryptForm, DecryptMessageForm
 from .models import EncryptionGroup, UncontrolProfile, get_user_profile, Membership
@@ -29,14 +31,16 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         return qs
 
 
-class KeyImportView(LoginRequiredMixin, FormView):
-    template_name = "uncontrol/form.html"
+class KeyImportView(LoginRequiredMixin, ModalFormView):
     form_class: forms.Form
-    success_url = reverse_lazy("dashboard")
 
-    def form_valid(self, form):
-        form.save()
-        return super().form_valid(form)
+    # success_url = reverse_lazy("dashboard")
+
+    def get_form_kwargs(self):
+        return {
+            **super().get_form_kwargs(),
+            "profile": get_user_profile(self.request.user),
+        }
 
 
 class PublicKeyImportView(KeyImportView):
@@ -57,17 +61,11 @@ class PublicKeyImportView(KeyImportView):
 class PrivateKeyImportView(KeyImportView):
     form_class = PrivateKeyImportForm
 
-    def get_form_kwargs(self):
-        return {
-            **super().get_form_kwargs(),
-            "profile": get_user_profile(self.request.user),
-        }
-
 
 class EncryptionGroupCreateView(LoginRequiredMixin, CreateView):
     model = EncryptionGroup
     fields = ["name"]
-    template_name = "uncontrol/form.html"
+    template_name = "htmx_components/form.html"
     success_url = reverse_lazy("dashboard")
 
     def form_valid(self, form):
@@ -80,10 +78,10 @@ class EncryptionGroupCreateView(LoginRequiredMixin, CreateView):
         return super().form_valid(form)
 
 
-class EncryptionGroupUpdateView(LoginRequiredMixin, UpdateView):
+class EncryptionGroupUpdateView(LoginRequiredMixin, ModalFormView, UpdateView):
     model = EncryptionGroup
     fields = ["name", "members", "public_keys"]
-    template_name = "uncontrol/form.html"
+    template_name = "htmx_components/form.html"
     success_url = reverse_lazy("dashboard")
 
     def get_form_class(self):
@@ -91,9 +89,13 @@ class EncryptionGroupUpdateView(LoginRequiredMixin, UpdateView):
         form_class.method = "post"
         return form_class
 
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        return response
+
 
 class EncryptionGroupDeleteView(LoginRequiredMixin, DeleteView):
-    template_name = "uncontrol/form.html"
+    template_name = "htmx_components/form.html"
     success_url = reverse_lazy("dashboard")
     model = EncryptionGroup
 
@@ -105,7 +107,7 @@ class EncryptionGroupDeleteView(LoginRequiredMixin, DeleteView):
 
 
 class EncryptionGroupRemovePublicKeyView(LoginRequiredMixin, DeleteView):
-    template_name = "uncontrol/form.html"
+    template_name = "htmx_components/form.html"
     success_url = reverse_lazy("dashboard")
     model = EncryptionGroup
 
@@ -122,38 +124,26 @@ class EncryptionGroupRemovePublicKeyView(LoginRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
-class EncryptionGroupEncryptView(LoginRequiredMixin, FormView):
+class CryptoOperationView(LoginRequiredMixin, ModalFormView):
+    modal = Modal(size="xl")
+    template_name = "uncontrol/form_with_result.html"
+
+    def get_form_kwargs(self):
+        return {
+            **super().get_form_kwargs(),
+            "profile": get_user_profile(self.request.user),
+        }
+
+
+class EncryptionGroupEncryptView(CryptoOperationView):
     form_class = EncryptionGroupEncryptForm
-    template_name = "uncontrol/form.html"
-    success_url = reverse_lazy("dashboard")
 
     def get_form_kwargs(self):
         return {
             **super().get_form_kwargs(),
             "group": EncryptionGroup.objects.get(id=self.kwargs.get("pk")),
-            "profile": get_user_profile(self.request.user),
         }
 
-    def form_valid(self, form):
-        context = {
-            "result": form.encrypt(),
-        }
-        return self.render_to_response(context)
 
-
-class DecryptMessageView(LoginRequiredMixin, FormView):
+class DecryptMessageView(CryptoOperationView):
     form_class = DecryptMessageForm
-    template_name = "uncontrol/form.html"
-    success_url = reverse_lazy("dashboard")
-
-    def get_form_kwargs(self):
-        return {
-            **super().get_form_kwargs(),
-            "profile": get_user_profile(self.request.user),
-        }
-
-    def form_valid(self, form):
-        context = {
-            "result": form.decrypt(),
-        }
-        return self.render_to_response(context)

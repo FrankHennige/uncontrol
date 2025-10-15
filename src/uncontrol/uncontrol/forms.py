@@ -27,8 +27,9 @@ class PublicKeyImportForm(BaseForm, forms.ModelForm):
             "content": "Enter your public key in PEM format.",
         }
 
-    def __init__(self, group, *args, **kwargs):
+    def __init__(self, group, profile, *args, **kwargs):
         self.group = group
+        self.profile = profile
         super().__init__(*args, **kwargs)
 
     def clean(self):
@@ -66,7 +67,7 @@ class PrivateKeyImportForm(BaseForm):
         required=True,
     )
     content = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 10, "cols": 70}),
+        widget=forms.Textarea(attrs={"rows": 10, "class": "w-100"}),
         label="Private Key",
         help_text="Enter your private key in PEM format.",
     )
@@ -117,10 +118,11 @@ class PrivateKeyImportForm(BaseForm):
 
 class EncryptionGroupEncryptForm(forms.Form):
     message = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 10, "cols": 70}),
+        widget=forms.Textarea(attrs={"rows": 10, "class": "w-100"}),
         label="Plaintext",
         help_text="Enter the plaintext to be encrypted.",
     )
+    processed_message = None
 
     def __init__(self, group, profile, *args, **kwargs):
         self.group = group
@@ -128,23 +130,29 @@ class EncryptionGroupEncryptForm(forms.Form):
         super().__init__(*args, **kwargs)
 
     def encrypt(self) -> str:
-        gpg = TemporaryGPG(self.profile.private_keys.all(), self.group.public_keys.all())
+        gpg = TemporaryGPG([], self.group.public_keys.all())
         encrypted_message = gpg.encrypt(self.cleaned_data["message"])
         return b64encode(encrypted_message.encode()).decode()
+
+    def save(self):
+        if not self.processed_message:
+            self.processed_message = self.encrypt()
+        return self.processed_message
 
 
 class DecryptMessageForm(forms.Form):
     user_password = forms.CharField(
         widget=forms.PasswordInput(),
         label="User Password",
-        help_text="Enter your User passphrase to encrypt your private key.",
+        help_text="Enter your User passphrase to decrypt your private key.",
         required=True,
     )
     encrypted_message = forms.CharField(
-        widget=forms.Textarea(attrs={"rows": 10, "cols": 70}),
+        widget=forms.Textarea(attrs={"rows": 10, "class": "w-100"}),
         label="Encrypted Message",
         help_text="Enter the encrypted message (Base64 encoded).",
     )
+    processed_message = None
 
     def __init__(self, profile, *args, **kwargs):
         self.profile = profile
@@ -164,7 +172,7 @@ class DecryptMessageForm(forms.Form):
             pass
         return encrypted_message
 
-    def decrypt(self) -> str:
+    def decrypt(self):
         private_keys = [*self.profile.private_keys.all()]
         for private_key in private_keys:
             private_key.set_user_password(self.cleaned_data["user_password"])
@@ -174,3 +182,8 @@ class DecryptMessageForm(forms.Form):
         except CryptoError as err:
             raise forms.ValidationError(f"Decryption failed: {err}") from err
         return decrypted_message
+
+    def save(self) -> str:
+        if not self.processed_message:
+            self.processed_message = self.decrypt()
+        return self.processed_message

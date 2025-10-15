@@ -37,6 +37,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_htmx",
     "django_extensions",
+    "django_bootstrap5",
+    "htmx_components",
     "uncontrol",
 ]
 
