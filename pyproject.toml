@@ -1,6 +1,6 @@
 [project]
 name = "uncontrol"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
     { name = "Frank Hennige", email = "frank@hennige-it.de" },
 ]
