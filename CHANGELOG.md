@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.2.2 (2025-10-18)
+
+### Bug Fixes
+
+- Python semantic release
+  ([`07e9263`](https://github.com/FrankHennige/uncontrol/commit/07e9263eef56f591d6fec67adae8c2a701af6103))
+
+
 ## v0.2.1 (2025-10-18)
 
 ### Bug Fixes
