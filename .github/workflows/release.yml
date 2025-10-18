@@ -140,7 +140,6 @@ jobs:
           verbose: true
 
       - name: Build and Push Docker Image
-        if: steps.release.outputs.released == 'true'
         run: |
           # Login to Docker Hub
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
