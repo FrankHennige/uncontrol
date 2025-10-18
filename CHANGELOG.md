@@ -2,6 +2,24 @@
 
 <!-- version list -->
 
+## v0.3.0 (2025-10-18)
+
+### Bug Fixes
+
+- Missing optional depencency
+  ([`6e613cb`](https://github.com/FrankHennige/uncontrol/commit/6e613cb19124f42df13dd000ee2c3388c2a20b66))
+
+### Chores
+
+- Docker container
+  ([`1942096`](https://github.com/FrankHennige/uncontrol/commit/1942096b8d65925c63a1ecbb4e94ef81929addfb))
+
+### Features
+
+- Bump minor
+  ([`b6c7eed`](https://github.com/FrankHennige/uncontrol/commit/b6c7eed72ba7d6d3c5cd18b9f1bcd899f77bd91f))
+
+
 ## v0.2.2 (2025-10-18)
 
 ### Bug Fixes
