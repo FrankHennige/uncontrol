@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.3.5 (2025-10-18)
+
+### Bug Fixes
+
+- Docker build and push
+  ([`f4c732f`](https://github.com/FrankHennige/uncontrol/commit/f4c732f2ce101e53f722f3d46f8929dc5b8f8002))
+
+- Docker build and push
+  ([`8f5ac1d`](https://github.com/FrankHennige/uncontrol/commit/8f5ac1d4e136223d96eb78c6aa1ca99b77b946cc))
+
+
 ## v0.3.4 (2025-10-18)
 
 ### Bug Fixes
