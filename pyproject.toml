@@ -30,7 +30,6 @@ Issues = "https://github.com/FrankHennige/uncontrol/issues"
 sources = ["src"]
 
 [dependency-groups]
-build = ["uv ~= 0.8.24"]
 test = [
     "black>=25.9.0",
     "isort>=6.1.0",
@@ -46,6 +45,9 @@ container = [
     "django-extensions>=4.1",
     "gunicorn>=23.0.0",
 ]
+
+[project.optional-dependencies]
+build = ["uv ~= 0.8.24"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
