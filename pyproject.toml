@@ -11,6 +11,8 @@ dependencies = [
     "django-extensions>=4.1",
     "django-htmx>=1.26.0",
     "gunicorn==23.0.0",
+    "htmx-components>=0.1.7",
+    "mypy>=1.11",
     "python-gnupg==0.5.5",
 ]
 
