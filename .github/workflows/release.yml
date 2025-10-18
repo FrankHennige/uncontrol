@@ -138,3 +138,37 @@ jobs:
           packages-dir: dist
           print-hash: true
           verbose: true
+
+      - name: Build and Push Docker Image
+        if: steps.release.outputs.released == 'true'
+        run: |
+          # Login to Docker Hub
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+          # Get the release tag
+          TAG="${{ steps.release.outputs.tag }}"
+
+          # Check if the tag is a full version (no rc, alpha, beta, etc.)
+          if echo "$TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Full version detected: $TAG"
+
+            # Extract major and minor versions (e.g., 1.2.3 -> 1.2 and 1)
+            MAJOR_MINOR=$(echo "$TAG" | cut -d. -f1-2)
+            MAJOR=$(echo "$TAG" | cut -d. -f1)
+
+            # Build the Docker image
+            docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$TAG .
+
+            # Tag and push all versions
+            docker tag ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$TAG ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR_MINOR
+            docker tag ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$TAG ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR
+            docker tag ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$TAG ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:latest
+
+            # Push all tags
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$TAG
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR_MINOR
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR
+            docker push ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:latest
+          else
+            echo "Skipping Docker push: $TAG is not a full version (e.g., contains rc, alpha, beta)"
+          fi

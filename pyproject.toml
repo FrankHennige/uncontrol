@@ -15,14 +15,14 @@ license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 dependencies = [
     "cryptography>=46.0.2",
-    "django==5.2.7",
+    #"django==5.2.7",
     "django-bootstrap5>=25.2",
-    "django-extensions>=4.1",
+    #"django-extensions>=4.1",
     "django-htmx>=1.26.0",
-    "gunicorn==23.0.0",
+    #"gunicorn==23.0.0",
     "htmx-components>=0.1.9",
-    "mypy>=1.11",
-    "python-gnupg==0.5.5",
+    #"mypy>=1.11",
+    "python-gnupg>=0.5.5",
 ]
 
 [project.urls]
@@ -34,6 +34,7 @@ Issues = "https://github.com/FrankHennige/uncontrol/issues"
 sources = ["src"]
 
 [dependency-groups]
+build = ["uv ~= 0.8.24"]
 test = [
     "black>=25.9.0",
     "isort>=6.1.0",
@@ -44,9 +45,11 @@ test = [
     "python-semantic-release>=10.4.1",
     "ruff>=0.13.3",
 ]
-
-[project.optional-dependencies]
-build = ["uv ~= 0.8.24"]
+container = [
+    "django>=4.2.25",
+    "django-extensions>=4.1",
+    "gunicorn>=23.0.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
