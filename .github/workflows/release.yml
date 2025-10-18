@@ -20,6 +20,12 @@ jobs:
       contents: write
 
     steps:
+      # Note: We checkout the repository at the branch that triggered the workflow
+      # with the entire history to ensure to match PSR's release branch detection
+      # and history evaluation.
+      # However, we forcefully reset the branch to the workflow sha because it is
+      # possible that the branch was updated while the workflow was running. This
+      # prevents accidentally releasing un-evaluated changes.
       - name: Setup | Checkout Repository on Release Branch
         uses: actions/checkout@v4
         with:
@@ -31,31 +37,47 @@ jobs:
           git reset --hard ${{ github.sha }}
 
       - name: Evaluate | Verify upstream has NOT changed
+        # Last chance to abort before causing an error as another PR/push was applied to
+        # the upstream branch while this workflow was running. This is important
+        # because we are committing a version change (--commit). You may omit this step
+        # if you have 'commit: false' in your configuration.
+        #
+        # You may consider moving this to a repo script and call it from this step instead
+        # of writing it in-line.
         shell: bash
         run: |
           set +o pipefail
+
           UPSTREAM_BRANCH_NAME="$(git status -sb | head -n 1 | awk -F '\\.\\.\\.' '{print $2}' | cut -d ' ' -f1)"
           printf '%s\n' "Upstream branch name: $UPSTREAM_BRANCH_NAME"
+
           set -o pipefail
+
           if [ -z "$UPSTREAM_BRANCH_NAME" ]; then
               printf >&2 '%s\n' "::error::Unable to determine upstream branch name!"
               exit 1
           fi
+
           git fetch "${UPSTREAM_BRANCH_NAME%%/*}"
+
           if ! UPSTREAM_SHA="$(git rev-parse "$UPSTREAM_BRANCH_NAME")"; then
               printf >&2 '%s\n' "::error::Unable to determine upstream branch sha!"
               exit 1
           fi
+
           HEAD_SHA="$(git rev-parse HEAD)"
+
           if [ "$HEAD_SHA" != "$UPSTREAM_SHA" ]; then
               printf >&2 '%s\n' "[HEAD SHA] $HEAD_SHA != $UPSTREAM_SHA [UPSTREAM SHA]"
               printf >&2 '%s\n' "::error::Upstream has changed, aborting release..."
               exit 1
           fi
+
           printf '%s\n' "Verified upstream branch has not changed, continuing with release..."
 
       - name: Action | Semantic Version Release
         id: release
+        # Adjust tag with desired version if applicable.
         uses: python-semantic-release/python-semantic-release@v10.4.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -63,12 +85,6 @@ jobs:
           git_committer_email: "actions@users.noreply.github.com"
           verbosity: "2"
           build: "true"
-
-      - name: Debug | Log Semantic Release Outputs
-        run: |
-          echo "Semantic Release Outputs: ${{ toJSON(steps.release.outputs) }}"
-          echo "Released: ${{ steps.release.outputs.released }}"
-          echo "Tag: ${{ steps.release.outputs.tag }}"
 
       - name: Publish | Upload to GitHub Release Assets
         uses: python-semantic-release/publish-action@v10.4.1
@@ -85,44 +101,31 @@ jobs:
           if-no-files-found: error
 
       - name: Build and Push Docker Image
-        if: needs.release.outputs.released == 'true'
+        if: steps.release.outputs.released == 'true'
         run: |
           # Login to Docker Hub
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-          
+
           # Get the release tag and strip leading 'v' if present
-          TAG="${{ needs.release.outputs.tag }}"
-          echo "Raw tag: $TAG"
+          TAG="${{ steps.release.outputs.tag }}"
           CLEAN_TAG="${TAG#v}"
-          echo "Clean tag: $CLEAN_TAG"
-          
-          # Check if the tag is empty
-          if [ -z "$TAG" ]; then
-            echo "::error::Release tag is empty, cannot proceed with Docker build"
-            exit 1
-          fi
-          if [ -z "$CLEAN_TAG" ]; then
-            echo "::error::Clean tag is empty after processing, cannot proceed with Docker build"
-            exit 1
-          fi
-          
+
           # Check if the tag is a full version (no rc, alpha, beta, etc.)
           if echo "$CLEAN_TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "Full version detected: $CLEAN_TAG"
-          
+
             # Extract major and minor versions (e.g., 1.2.3 -> 1.2 and 1)
             MAJOR_MINOR=$(echo "$CLEAN_TAG" | cut -d. -f1-2)
             MAJOR=$(echo "$CLEAN_TAG" | cut -d. -f1)
-            echo "Major-Minor: $MAJOR_MINOR, Major: $MAJOR"
-          
+
             # Build the Docker image
             docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$CLEAN_TAG .
-          
+
             # Tag and push all versions
             docker tag ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$CLEAN_TAG ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR_MINOR
             docker tag ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$CLEAN_TAG ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR
             docker tag ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$CLEAN_TAG ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:latest
-          
+
             # Push all tags
             docker push ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$CLEAN_TAG
             docker push ${{ secrets.DOCKERHUB_USERNAME }}/uncontrol:$MAJOR_MINOR
@@ -133,9 +136,12 @@ jobs:
           fi
     outputs:
       released: ${{ steps.release.outputs.released }}
-      tag: ${{ steps.release.outputs.tag }}
 
   deploy:
+    # 1. Separate out the deploy step from the publish step to run each step at
+    #    the least amount of token privilege
+    # 2. Also, deployments can fail, and its better to have a separate job if you need to retry
+    #    and it won't require reversing the release.
     runs-on: ubuntu-latest
     needs: release
     if: ${{ needs.release.outputs.released == 'true' }}
@@ -145,12 +151,6 @@ jobs:
       id-token: write
 
     steps:
-      - name: Setup | Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
-          fetch-depth: 0
-
       - name: Setup | Download Build Artifacts
         uses: actions/download-artifact@v4
         id: artifact-download
@@ -158,6 +158,15 @@ jobs:
           name: distribution-artifacts
           path: dist
 
+      # ------------------------------------------------------------------- #
+      # Python Semantic Release is not responsible for publishing your      #
+      # python artifacts to PyPI. Use the official PyPA publish action      #
+      # instead. The following steps are an example but is not guaranteed   #
+      # to work as the action is not maintained by the                      #
+      # python-semantic-release team.                                       #
+      # ------------------------------------------------------------------- #
+
+      # see https://docs.pypi.org/trusted-publishers/
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
