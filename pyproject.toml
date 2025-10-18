@@ -52,7 +52,7 @@ build = ["uv ~= 0.8.24"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-htmx_components = ["*.html", "**/*.html"]
+uncontrol = ["*.html", "**/*.html"]
 
 [tool.semantic_release]
 build_command = """
